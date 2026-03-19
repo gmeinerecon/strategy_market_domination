@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { motion } from "framer-motion";
 import { Line } from "react-chartjs-2";
 
-const SOCKET_URL = "wss://your-render-backend.onrender.com";
+const SOCKET_URL = "wss://strategy-market-domination.onrender.com";
 
 export default function App() {
   const socketRef = useRef(null);
