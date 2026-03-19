@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monopolistic Competition – Student Console (Option C)</title>
+
+  <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    /* -------- MOBILE RESPONSIVENESS EXTENSIONS -------- */
+
+    @media (max-width: 720px) {
+      .grid-3, .grid-2 {
+        grid-template-columns: 1fr !important;
+      }
+
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      .title-row {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .badge {
+        font-size: 0.8rem;
+      }
+
+      input, button {
+        font-size: 1rem;
+      }
+    }
+
+    /* Legend inside Results */
+    #resultsLegend {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      background: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .legend-color-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid #94a3b8;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Student Console</h1>
+
+  <!-- ---------------- JOIN SCREEN ---------------- -->
+  <div class="card" id="join-card">
+    <h2>Join the game</h2>
+    <div class="grid-2" style="max-width:520px">
+      <div>
+        <label>Your firm name</label>
+        <input type="text" id="firmName" placeholder="e.g., Team Delta" />
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn" id="joinBtn">Join</button>
+      </div>
+    </div>
+    <div class="muted" style="margin-top:6px">This page connects you to the game.</div>
+  </div>
+
+  <!-- ---------------- PLAY SCREEN ---------------- -->
+  <div class="card" id="play-card" style="display:none">
+    <div class="title-row">
+      <h2>Round <span id="roundSpan">1</span>: Your Choices</h2>
+      <div class="badge">Firm: <span id="firmNameBadge"></span></div>
+    </div>
+
+    <div class="grid-3" style="margin-top:8px">
+      <div>
+        <label>Price</label>
+        <input type="number" step="0.01" id="priceInp" value="10" />
+      </div>
+      <div>
+        <label>Quantity</label>
+        <input type="number" step="1" id="qtyInp" value="20" />
+      </div>
+      <div>
+        <label>Brand investment</label>
+        <input type="number" step="0.1" min="0" id="brandInp" value="5" />
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:8px">
+      <div>
+        <label>Advertising investment</label>
+        <input type="number" step="0.1" min="0" id="adInp" value="5" />
+      </div>
+      <div>
+        <label>Capacity investment</label>
+        <input type="number" step="0.1" min="0" id="invInp" value="0" />
+      </div>
+      <div></div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="submitBtn">Submit Choices</button>
+      <div class="badge" id="statusBadge">Make your selection</div>
+    </div>
+
+    <div class="muted" style="margin-top:6px">
+      Brand & advertising capital persist each round.  
+      Capacity investment permanently increases production capacity.
+    </div>
+  </div>
+
+  <!-- ---------------- RESULTS ---------------- -->
+  <div class="card" id="results-card" style="display:none; margin-top:12px">
+    <div class="title-row">
+      <h2>Class Results</h2>
+      <div class="muted">You can see your outcomes and the class average.</div>
+    </div>
+
+    <div class="metrics" id="marketMetrics"></div>
+
+    <!-- NEW: Legend inside results -->
+    <h3 style="margin-top:14px">Firm Legend</h3>
+    <div id="resultsLegend"></div>
+
+    <h2 style="margin-top:14px;">Firm Outcomes (this round)</h2>
+    <div id="firmOutcomes" class="grid-auto"></div>
+  </div>
+
+  <!-- ---------------- CHARTS ---------------- -->
+  <div class="card" id="charts-card" style="display:none; margin-top:12px">
+    <div class="title-row">
+      <h2>Class Charts</h2>
+      <div class="muted">Legends label firms by name & color</div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="muted" style="margin-bottom:6px;">Cumulative Profit by firm</div>
+        <div class="legend" id="legendCum"></div>
+        <canvas id="chartCumProfit"></canvas>
+      </div>
+      <div>
+        <div class="muted" style="margin-bottom:6px;">Market Share (%) by firm</div>
+        <div class="legend" id="legendShare"></div>
+        <canvas id="chartMarketShare"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/common.js"></script>
+
+<script>
+/* ---------------------------------------------------
+   WebSocket + State
+--------------------------------------------------- */
+const el = id => document.getElementById(id);
+const ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host);
+
+const my = { firmId: null, color: '#2563eb' };
+const state = { round: 1, firms: [], history: [], choices: {}, lastResults: null };
+
+function sendChoice() {
+  const choice = {
+    price: Number(el('priceInp').value),
+    quantity: Number(el('qtyInp').value),
+    brand: Number(el('brandInp').value),
+    ad: Number(el('adInp').value),
+    invest: Number(el('invInp').value)
+  };
+  ws.send(JSON.stringify({ type: 'choice_update', choice }));
+}
+
+/* Attach change listeners */
+['priceInp','qtyInp','brandInp','adInp','invInp'].forEach(id => {
+  el(id).addEventListener('change', sendChoice);
+});
+
+/* ---------------------------------------------------
+   Rendering logic
+--------------------------------------------------- */
+function render() {
+  el('roundSpan').textContent = state.round;
+
+  const ch = state.choices ? state.choices[my.firmId] : null;
+  if (ch) el('statusBadge').textContent = ch.submitted ? 'Submitted' : 'Not submitted';
+
+  const hasHistory = state.history && state.history.length > 0;
+  el('results-card').style.display = state.lastResults ? 'block' : 'none';
+  el('charts-card').style.display = hasHistory ? 'block' : 'none';
+
+  /* ----- Build results legend ----- */
+  if (state.firms.length > 0) {
+    const legend = el('resultsLegend');
+    legend.innerHTML = '';
+    state.firms.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'legend-item';
+      div.innerHTML = `
+        <div class="legend-color-box" style="background:${f.color}"></div>
+        <span>${f.name} (ID ${f.id})</span>
+      `;
+      legend.appendChild(div);
+    });
+  }
+
+  /* ----- Market + Firm results ----- */
+  if (state.lastResults) {
+    const m = state.lastResults;
+    const market = el('marketMetrics');
+    market.innerHTML = '';
+
+    const addMetric = (label, value) => {
+      const d = document.createElement('div');
+      d.className = 'metric';
+      d.innerHTML = `<strong>${label}</strong><div>${value}</div>`;
+      market.appendChild(d);
+    };
+
+    addMetric('Avg Price', m.avgPrice);
+    addMetric('Avg Effective Brand', m.avgBrandEff);
+    addMetric('Baseline Demand', m.demandBaseline);
+    addMetric('Shock ε', m.shock);
+    addMetric('Market Demand', m.marketDemand);
+    addMetric('Avg Profit', m.avgProfit);
+
+    /* Firm-level outcomes */
+    const fo = el('firmOutcomes');
+    fo.innerHTML = '';
+    m.firmOutcomes.forEach(o => {
+      const f = state.firms.find(x => x.id === o.id) || {};
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px;">
+          <div style="width:12px;height:12px;border-radius:3px;background:${f.color};border:1px solid #cbd5e1"></div>
+          <div>${o.name} (Firm ${o.id})</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div class="muted">Price</div><div>${o.p}</div>
+            <div class="muted">Brand invest</div><div>${o.bInvest}</div>
+            <div class="muted">Ad invest</div><div>${o.adInvest}</div>
+            <div class="muted">Capacity invest</div><div>${o.invest}</div>
+            <div class="muted">Brand cap (B)</div><div>${o.bEff}</div>
+            <div class="muted">Ad cap (A)</div><div>${o.aEff}</div>
+          </div>
+          <div>
+            <div class="muted">Production (q)</div><div>${o.q}</div>
+            <div class="muted">Demanded</div><div>${o.demanded.toFixed(2)}</div>
+            <div class="muted">Sales</div><div>${o.sales.toFixed(2)}</div>
+            <div class="muted">Leftover</div><div>${o.leftover.toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:8px;">
+          <div><div class="muted">Revenue</div><div>${o.revenue}</div></div>
+          <div><div class="muted">Cost</div><div>${o.cost}</div></div>
+          <div><div class="muted">Profit</div><div class="${o.profit >= 0 ? 'profit-pos' : 'profit-neg'}">${o.profit}</div></div>
+        </div>
+      `;
+      fo.appendChild(d);
+    });
+  }
+
+  /* ----- Charts (from common.js) ----- */
+  if (hasHistory) {
+    const labels = state.history.map(h => h.round);
+    const lastFO = state.history[state.history.length - 1]?.firmOutcomes || [];
+    const ids = lastFO.map(o => o.id);
+    const firmsMap = Object.fromEntries(state.firms.map(f => [f.id, f]));
+
+    /* Cum profit */
+    const cum = {};
+    const running = {};
+    ids.forEach(id => { cum[id] = []; running[id] = 0; });
+
+    state.history.forEach(h => {
+      ids.forEach(id => {
+        const fo = h.firmOutcomes.find(x => x.id === id);
+        running[id] += fo ? fo.profit : 0;
+        cum[id].push(running[id]);
+      });
+    });
+
+    const seriesCum = ids.map(id => ({
+      label: firmsMap[id]?.name,
+      color: firmsMap[id]?.color,
+      data: cum[id]
+    }));
+
+    drawLineChart('chartCumProfit', seriesCum, labels, {
+      legendId: 'legendCum',
+      yTitle: 'Cumulative $',
+      xTitle: 'Round'
+    });
+
+    /* Market share */
+    const seriesShare = ids.map(id => ({
+      label: firmsMap[id]?.name,
+      color: firmsMap[id]?.color,
+      data: state.history.map(h => {
+        const fo = h.firmOutcomes.find(x => x.id === id);
+        return fo ? +(fo.share * 100).toFixed(2) : NaN;
+      })
+    }));
+
+    drawLineChart('chartMarketShare', seriesShare, labels, {
+      legendId: 'legendShare',
+      yTitle: '%',
+      xTitle: 'Round'
+    });
+  }
+}
+
+/* ---------------------------------------------------
+   WebSocket events
+--------------------------------------------------- */
+el('joinBtn').addEventListener('click', () => {
+  const name = (el('firmName').value || '').trim() || 'Firm';
+  ws.send(JSON.stringify({ type: 'join', role: 'student', name }));
+});
+
+el('submitBtn').addEventListener('click', () => {
+  ws.send(JSON.stringify({ type: 'choice_submit' }));
+  el('statusBadge').textContent = 'Submitted';
+});
+
+ws.addEventListener('message', ev => {
+  const msg = JSON.parse(ev.data);
+
+  if (msg.type === 'joined') {
+    my.firmId = msg.payload.firmId;
+    my.color = msg.payload.color;
+
+    el('join-card').style.display = 'none';
+    el('play-card').style.display = 'block';
+
+    el('firmNameBadge').textContent =
+      (el('firmName').value || 'Firm') + ' (ID ' + my.firmId + ')';
+
+    sendChoice();
+  }
+
+  if (msg.type === 'kicked') {
+    el('play-card').style.display = 'none';
+    el('results-card').style.display = 'none';
+    el('charts-card').style.display = 'none';
+    el('join-card').style.display = 'block';
+    my.firmId = null;
+  }
+
+  if (msg.type === 'state') {
+    const s = msg.payload;
+    state.round = s.round;
+    state.params = s.params;
+    state.firms = s.firms;
+    state.choices = s.choices;
+    state.history = s.history;
+    state.lastResults = null;
+    render();
+  }
+
+  if (msg.type === 'results') {
+    const { results, state: s } = msg.payload;
+    state.lastResults = results;
+    state.round = s.round;
+    state.params = s.params;
+    state.firms = s.firms;
+    state.choices = s.choices;
+    state.history = s.history;
+    render();
+  }
+});
+</script>
+
+</body>
+</html>
