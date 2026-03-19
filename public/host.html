@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Monopolistic Competition – Host Dashboard (Option C)</title>
 
-  /styles.css
+  <!-- Correct stylesheet link -->
+  <link rel="stylesheet" href="/styles.css" />
 
   <style>
     /* ---------- MOBILE RESPONSIVENESS ---------- */
@@ -240,7 +241,8 @@
 
 </div>
 
-/common.js</script>
+<!-- Correct script include -->
+<script src="/common.js"></script>
 
 <script>
 /* ------------------------------------------------------------------------------------
@@ -345,3 +347,239 @@ function render() {
     };
 
     addMetric('Avg Price', r.avgPrice);
+    addMetric('Avg Brand Cap', r.avgBrandEff);
+    addMetric('Baseline Demand', r.demandBaseline);
+    addMetric('Shock ε', r.shock);
+    addMetric('Market Demand', r.marketDemand);
+    addMetric('Avg Profit', r.avgProfit);
+
+    /* Legend */
+    const legend = el('resultsLegend');
+    legend.innerHTML = firms.map(f =>
+      `<div class="legend-item">
+         <div class="legend-color-box" style="background:${f.color}"></div>
+         ${f.name} (ID ${f.id})
+       </div>`
+    ).join('');
+
+    /* Firm Outcomes */
+    const fo = el('firmOutcomes');
+    fo.innerHTML = '';
+    r.firmOutcomes.forEach(o => {
+      const f = firms.find(x=>x.id===o.id) || {};
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px;">
+          <div style="width:12px;height:12px;border-radius:3px;background:${f.color};border:1px solid #cbd5e1"></div>
+          <div>${o.name} (Firm ${o.id})</div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div class="muted">Price</div><div>${o.p}</div>
+            <div class="muted">Brand invest</div><div>${o.bInvest}</div>
+            <div class="muted">Ad invest</div><div>${o.adInvest}</div>
+            <div class="muted">Cap invest</div><div>${o.invest}</div>
+            <div class="muted">Brand cap</div><div>${o.bEff}</div>
+            <div class="muted">Ad cap</div><div>${o.aEff}</div>
+          </div>
+          <div>
+            <div class="muted">q</div><div>${o.q}</div>
+            <div class="muted">Demanded</div><div>${o.demanded.toFixed(2)}</div>
+            <div class="muted">Sales</div><div>${o.sales.toFixed(2)}</div>
+            <div class="muted">Leftover</div><div>${o.leftover.toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:8px;">
+          <div><div class="muted">Revenue</div><div>${o.revenue}</div></div>
+          <div><div class="muted">Cost</div><div>${o.cost}</div></div>
+          <div><div class="muted">Profit</div>
+               <div class="${o.profit>=0?'profit-pos':'profit-neg'}">${o.profit}</div></div>
+        </div>
+      `;
+      fo.appendChild(div);
+    });
+  }
+
+  /* ---------------- CHARTS ---------------- */
+  if (state.history.length > 0) {
+    const labels = state.history.map(h=>h.round);
+
+    drawLineChart('chartDemand',
+      [{label:'Market Demand', color:'#2563eb', data: state.history.map(h=>h.summary.marketDemand)}],
+      labels,
+      {yTitle:'Units', xTitle:'Round'}
+    );
+
+    drawLineChart('chartAvgProfit',
+      [{label:'Avg Profit', color:'#16a34a', data: state.history.map(h=>h.summary.avgProfit)}],
+      labels,
+      {yTitle:'$', xTitle:'Round'}
+    );
+
+    /* Ad Capital + Capacity */
+    const fids = state.history.at(-1).firmOutcomes.map(o=>o.id);
+
+    const seriesAd = fids.map(id => ({
+      label: (state.firms.find(f=>f.id===id)||{}).name,
+      color: (state.firms.find(f=>f.id===id)||{}).color,
+      data: state.history.map(h=>{
+        const fo = h.firmOutcomes.find(x=>x.id===id);
+        return fo ? fo.aEff : NaN;
+      })
+    }));
+
+    drawLineChart('chartAdCap', seriesAd, labels,
+      {yTitle:'Ad Cap', xTitle:'Round'}
+    );
+
+    const seriesCap = fids.map(id => ({
+      label: (state.firms.find(f=>f.id===id)||{}).name,
+      color: (state.firms.find(f=>f.id===id)||{}).color,
+      data: state.history.map(h=>{
+        const fo = h.firmOutcomes.find(x=>x.id===id);
+        return fo ? (state.firms.find(f => f.id===id)||{}).capacity : NaN;
+      })
+    }));
+
+    drawLineChart('chartCapacity', seriesCap, labels,
+      {yTitle:'Capacity', xTitle:'Round'}
+    );
+
+    /* Profit by firm */
+    const byId = id => state.history.map(h=>{
+      const fo = h.firmOutcomes.find(x=>x.id===id);
+      return fo? fo.profit : NaN;
+    });
+
+    const seriesProfit =
+      fids.map(id => {
+        const f = state.firms.find(x=>x.id===id)||{};
+        return {
+          label: f.name,
+          color: f.color,
+          data: byId(id)
+        };
+      });
+
+    drawLineChart('chartFirmProfit', seriesProfit, labels,
+      {legendId:'legendProfit', yTitle:'Profit $', xTitle:'Round'}
+    );
+
+    /* Cumulative profit */
+    const cum = {}, run = {};
+    fids.forEach(id=>{cum[id]=[]; run[id]=0;});
+    state.history.forEach(h=>{
+      fids.forEach(id=>{
+        const fo = h.firmOutcomes.find(x=>x.id===id);
+        run[id] += fo?fo.profit:0;
+        cum[id].push(run[id]);
+      });
+    });
+
+    const seriesCum =
+      fids.map(id => ({
+        label: (state.firms.find(f=>f.id===id)||{}).name,
+        color: (state.firms.find(f=>f.id===id)||{}).color,
+        data: cum[id]
+      }));
+
+    drawLineChart('chartCumProfit', seriesCum, labels,
+      {legendId:'legendCum', yTitle:'Cumulative $', xTitle:'Round'}
+    );
+
+    /* Market share */
+    const seriesShare =
+      fids.map(id => ({
+        label: (state.firms.find(f=>f.id===id)||{}).name,
+        color: (state.firms.find(f=>f.id===id)||{}).color,
+        data: state.history.map(h=>{
+          const fo=h.firmOutcomes.find(x=>x.id===id);
+          return fo?+(fo.share*100).toFixed(2):NaN;
+        })
+      }));
+
+    drawLineChart('chartMarketShare', seriesShare, labels,
+      {legendId:'legendShare', yTitle:'%', xTitle:'Round'}
+    );
+  }
+}
+
+/* ------------------------------------------------------------------------------------
+   WS EVENTS
+------------------------------------------------------------------------------------ */
+function applyParams() {
+  const params = {};
+  pIds.forEach(id => params[id] = Number(el(id).value));
+  ws.send(JSON.stringify({ type:'set_params', params }));
+}
+
+ws.addEventListener('open', () => {
+  ws.send(JSON.stringify({ type:'join', role:'host' }));
+});
+
+ws.addEventListener('message', ev => {
+  const msg = JSON.parse(ev.data);
+
+  if (msg.type === 'state') {
+    Object.assign(state, msg.payload);
+    state.lastResults = null;
+    render();
+  }
+
+  if (msg.type === 'results') {
+    state.lastResults = msg.payload.results;
+    Object.assign(state, msg.payload.state);
+    render();
+  }
+
+  if (msg.type === 'csv_data') {
+    download('monopolistic_competition_history.csv', msg.payload.csv);
+  }
+});
+
+/* ------------------------------------------------------------------------------------
+   UI ACTIONS
+------------------------------------------------------------------------------------ */
+el('resetBtn').addEventListener('click', () => {
+  ws.send(JSON.stringify({ type:'reset_game', hard:false }));
+});
+
+el('hardResetBtn').addEventListener('click', () => {
+  ws.send(JSON.stringify({ type:'reset_game', hard:true }));
+});
+
+el('computeBtn').addEventListener('click', () => {
+  ws.send(JSON.stringify({ type:'compute_round' }));
+});
+
+el('downloadCsvBtn').addEventListener('click', () => {
+  ws.send(JSON.stringify({ type:'export_csv' }));
+});
+
+el('clearChartsBtn').addEventListener('click', () => {
+  state.history = [];
+  state.lastResults = null;
+  render();
+});
+
+pIds.forEach(id => {
+  if (el(id)) el(id).addEventListener('change', applyParams);
+});
+
+/* Kick buttons */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.kickBtn');
+  if (btn) {
+    ws.send(JSON.stringify({
+      type: 'kick_firm',
+      id: Number(btn.dataset.id)
+    }));
+  }
+});
+</script>
+
+</body>
+</html>
