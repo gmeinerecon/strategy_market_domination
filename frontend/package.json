@@ -1,9 +1,0 @@
-
-{
-  "name": "market-domination-frontend",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "start": "echo 'Integrate with your React build system'"
-  }
-}
