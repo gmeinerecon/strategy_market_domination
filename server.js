@@ -494,16 +494,29 @@ wss.on('connection', (ws) => {
     // -------------------------------
     // Host computes round
     // -------------------------------
-    if (t === 'compute_round') {
-      if (!state.hostClients.has(ws)) return;
-      const results = computeResults();
-      if (results) {
-        broadcast({ type: 'results', payload: { results, state: getPublicState() } });
-      } else {
-        send(ws, { type: 'error', message: 'No firms connected.' });
-      }
-      return;
-    }
+// -------------------------------
+// Host computes round
+// -------------------------------
+if (t === 'compute_round') {
+  if (!state.hostClients.has(ws)) return;
+
+  const results = computeResults();
+
+  // FIX: Reset all submissions for the next round
+  Object.values(state.choices).forEach(ch => {
+    if (ch) ch.submitted = false;
+  });
+
+  if (results) {
+    broadcast({
+      type: 'results',
+      payload: { results, state: getPublicState() }
+    });
+  } else {
+    send(ws, { type: 'error', message: 'No firms connected.' });
+  }
+  return;
+}
 
     // -------------------------------
     // Host exports CSV
