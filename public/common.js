@@ -3,68 +3,98 @@ const palette = ['#2563eb','#16a34a','#dc2626','#f59e0b','#06b6d4','#a855f7','#f
 
 function num(v){ const n = Number(v); return Number.isFinite(n)? n : 0; }
 
-function drawLineChart(canvasId, series, labels, opts={}){
+function drawLineChart(canvasId, series, labels, opts = {}) {
   const canvas = document.getElementById(canvasId);
-  if(!canvas) return; const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0,0,W,H);
-  const pad = {l: 64, r: 12, t: 24, b: 36};
-  const w = W - pad.l - pad.r, h = H - pad.t - pad.b;
+  if (!canvas) return;
 
-  const all = series.flatMap(s => s.data.filter(Number.isFinite));
-  let minY = Math.min(...all), maxY = Math.max(...all);
-  if(!Number.isFinite(minY) || !Number.isFinite(maxY)) { minY = 0; maxY = 1; }
-  if(minY === maxY) { maxY = minY + 1; }
-  const span = maxY - minY; minY -= span*0.05; maxY += span*0.05;
+  const ctx = canvas.getContext('2d');
 
-  // axes + axis titles
-  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+h); ctx.lineTo(pad.l+w, pad.t+h); ctx.stroke();
-  ctx.fillStyle = '#475569'; ctx.font = '12px system-ui';
-  if(opts.yTitle){ ctx.save(); ctx.translate(16, pad.t+h/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText(opts.yTitle, 0,0); ctx.restore(); }
-  if(opts.xTitle){ ctx.textAlign='center'; ctx.fillText(opts.xTitle, pad.l+w/2, pad.t+h+28); }
+  // ---- HiDPI Render Fix ----
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
 
-  // grid lines
-  ctx.strokeStyle = '#e5e7eb'; ctx.setLineDash([4,4]);
-  for(let i=1;i<=4;i++){
-    const y = pad.t + (h*i/5); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+w, y); ctx.stroke();
+  // Resize internal pixel buffer
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+
+  // Normalize drawing space
+  ctx.scale(dpr, dpr);
+
+  // ---- Chart Dimensions ----
+  const width = rect.width;
+  const height = rect.height;
+  const padding = 40;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // ---- Axes ----
+  ctx.strokeStyle = "#64748b";
+  ctx.lineWidth = 1;
+
+  // X-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+
+  // Y-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.stroke();
+
+  // ---- Determine Y range ----
+  let allValues = [];
+  series.forEach(s => allValues.push(...s.data));
+  allValues = allValues.filter(v => Number.isFinite(v));
+
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+
+  const yMin = minVal > 0 ? 0 : minVal;
+  const yMax = maxVal;
+
+  const yScale = (height - padding * 2) / (yMax - yMin);
+
+  function yPixel(val) {
+    return height - padding - (val - yMin) * yScale;
   }
-  ctx.setLineDash([]);
 
-  // y labels
-  ctx.fillStyle = '#475569'; ctx.textAlign='right';
-  const yVals = [maxY, (maxY+minY)/2, minY];
-  yVals.forEach((v, idx)=>{ const y = pad.t + (idx===0?0: idx===1?h/2: h); ctx.fillText(v.toFixed(1), pad.l-6, y+4); });
+  // ---- Draw Lines ----
+  series.forEach(s => {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
 
-  // x labels
-  ctx.textAlign='center';
-  const n = labels.length; const xMap = (i,n)=> pad.l + (n<=1? 0 : (w * i / (n-1)));
-  for(let i=0;i<n;i++){ const x = xMap(i,n); const lab = labels[i]; if(i%Math.ceil(n/10)===0 || i===n-1){ ctx.fillText(lab, x, pad.t+h+18); } }
+    ctx.beginPath();
+    s.data.forEach((v, i) => {
+      if (!Number.isFinite(v)) return;
 
-  const yMap = (y)=> pad.t + h - ( (y - minY) / (maxY - minY) ) * h;
+      const x = padding + (i / (labels.length - 1)) * (width - padding * 2);
+      const y = yPixel(v);
 
-  series.forEach((s)=>{
-    const color = s.color || '#2563eb';
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
-    let started = false;
-    s.data.forEach((v,i)=>{
-      if(!Number.isFinite(v)) { started = false; return; }
-      const x = xMap(i, n); const y = yMap(v);
-      if(!started){ ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
   });
 
-  // legend
-  const legendEl = document.getElementById(opts.legendId||'');
-  if(legendEl){
-    legendEl.innerHTML='';
-    series.forEach(s=>{
-      const item = document.createElement('div'); item.className='legend-item';
-      const sw = document.createElement('div'); sw.className='legend-swatch'; sw.style.background = s.color||'#2563eb';
-      const label = document.createElement('div'); label.textContent = s.label || 'Series';
-      item.appendChild(sw); item.appendChild(label); legendEl.appendChild(item);
-    });
+  // ---- Draw Legend ----
+  if (opts.legendId) {
+    const legend = document.getElementById(opts.legendId);
+    if (legend) {
+      legend.innerHTML = "";
+      series.forEach(s => {
+        const item = document.createElement("div");
+        item.style.display = "flex";
+        item.style.alignItems = "center";
+        item.style.gap = "6px";
+        item.innerHTML = `
+          <div style="width:14px;height:14px;border-radius:3px;
+               background:${s.color};border:1px solid #94a3b8"></div>
+          <span>${s.label}</span>`;
+        legend.appendChild(item);
+      });
+    }
   }
 }
 
