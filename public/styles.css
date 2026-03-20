@@ -1,30 +1,249 @@
-:root{
-  --bg:#f8fafc; --fg:#0f172a; --muted:#475569; --card:#ffffff; --border:#e2e8f0; --accent:#2563eb; --ok:#16a34a; --bad:#dc2626; --grid:#e5e7eb;
+/* ============================================================
+   Warm & Vibrant Theme - Full Stylesheet Rewrite
+   Based on original styles.css (ref: turn11search1)
+   ============================================================ */
+
+:root {
+  /* --- Warm Vibrant Theme Palette --- */
+
+  /* Backgrounds */
+  --bg: #fff8f2;          /* warm cream */
+  --card: #ffffff;
+  --border: #f0d8c8;      /* soft warm sand */
+  --grid: #f3e5d8;        /* warm grid for charts */
+
+  /* Text */
+  --fg: #3b2f2f;          /* deep warm brown */
+  --muted: #8a6f63;       /* warm gray */
+
+  /* Primary Accent */
+  --accent: #ff6b35;      /* vibrant orange */
+
+  /* Pos/Neg */
+  --ok: #2aa15a;          /* rich green */
+  --bad: #d62828;         /* vivid red */
+
+  /* Chart line palette (high-contrast & warm) */
+  --line1: #ff6b35;
+  --line2: #f4a259;
+  --line3: #5b8e7d;
+  --line4: #33658a;
+  --line5: #8e4162;
 }
-html,body{height:100%}
-body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:var(--bg); color:var(--fg)}
-.container{max-width:1200px; margin:0 auto; padding:24px}
-.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow: 0 2px 10px rgba(0,0,0,0.04)}
-.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
-.grid-auto{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:12px}
-.btn{background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600}
-.btn.secondary{background:#f1f5f9; color:var(--fg); border:1px solid var(--border)}
-.badge{display:inline-block; background:#fff; border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:12px; color:var(--muted)}
-.muted{color:var(--muted); font-size:12px}
-label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
-input[type=number], input[type=text]{ width:100%; box-sizing:border-box; background:#fff; color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px}
-.metrics{ display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:10px }
-.metric{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:10px }
-.metric strong{ display:block; font-size:12px; color:var(--muted) }
-.metric div{ font-size:16px; font-weight:700 }
-canvas{ background:#ffffff; border:1px solid var(--border); border-radius:12px; width:100%; height:260px }
-.legend{ display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 }
-.legend-item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted) }
-.legend-swatch{ width:12px; height:12px; border-radius:3px; border:1px solid #cbd5e1 }
-h1{font-size:28px; margin:0 0 6px 0}
-h2{font-size:18px; margin:0 0 10px 0}
-.title-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
-.profit-pos{ color: var(--ok) }
-.profit-neg{ color: var(--bad) }
+
+/* ============================================================
+   Global
+   ============================================================ */
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Containers & Layout --------------------------------------- */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+
+  /* Warm glow shadow */
+  box-shadow: 0 4px 14px rgba(255, 110, 50, 0.12);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 12px;
+}
+
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+  gap: 12px;
+}
+
+/* Buttons ---------------------------------------------------- */
+
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.btn:hover {
+  background: #ff8a5d;
+  transform: translateY(-2px);
+}
+
+.btn.secondary {
+  background: #ffe8df;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.btn.secondary:hover {
+  background: #ffdccc;
+}
+
+/* Badges ----------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  background: #fff3ea;
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Text ------------------------------------------------------- */
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+/* Inputs ----------------------------------------------------- */
+
+input[type=number],
+input[type=text] {
+  width: 100%;
+  background: #ffffff;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* Metrics ---------------------------------------------------- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+  gap: 10px;
+}
+
+.metric {
+  background: #fff5ee;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.metric strong {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.metric div {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+/* Charts ----------------------------------------------------- */
+
+canvas {
+  background: #fffdf9;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  height: 260px;
+}
+
+/* Legends ----------------------------------------------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid #cdb8a8;
+}
+
+/* Headers ----------------------------------------------------- */
+
+h1 {
+  font-size: 28px;
+  margin: 0 0 6px 0;
+  color: var(--fg);
+}
+
+h2 {
+  font-size: 18px;
+  margin: 0 0 10px 0;
+  color: var(--fg);
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Profit Colors ------------------------------------------------ */
+
+.profit-pos {
+  color: var(--ok);
+}
+
+.profit-neg {
+  color: var(--bad);
+}
