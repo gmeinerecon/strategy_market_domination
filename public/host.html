@@ -525,7 +525,6 @@ ws.addEventListener('message', ev => {
 
   if (msg.type === 'state') {
     Object.assign(state, msg.payload);
-    state.lastResults = null;
     render();
   }
 
